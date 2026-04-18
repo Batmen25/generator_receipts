@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ДМ2 Мост-2 — Sales OS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg0:#07090f;--bg1:#0c0f1a;--bg2:#111520;--bg3:#171d2e;--bg4:#1d2438;
+  --bd:rgba(255,255,255,.07);--bd2:rgba(255,255,255,.13);
+  --t1:#e8eaf2;--t2:#8892a6;--t3:#454d60;
+  --blue:#4f8ef7;--blue-bg:rgba(79,142,247,.12);--blue-bd:rgba(79,142,247,.25);
+  --green:#34d399;--green-bg:rgba(52,211,153,.11);--green-bd:rgba(52,211,153,.25);
+  --amber:#f5a623;--amber-bg:rgba(245,166,35,.11);--amber-bd:rgba(245,166,35,.25);
+  --red:#f87171;--red-bg:rgba(248,113,113,.11);--red-bd:rgba(248,113,113,.25);
+  --purple:#a78bfa;--purple-bg:rgba(167,139,250,.11);
+  --sidebar:224px;--r:10px;--r2:14px;
+}
+html,body{height:100%;background:var(--bg0);color:var(--t1);font-family:'Outfit',system-ui,sans-serif;font-size:14px;line-height:1.5;overflow-x:hidden}
+
+/* ── Sidebar ── */
+.sidebar{position:fixed;top:0;left:0;width:var(--sidebar);height:100vh;background:var(--bg1);border-right:1px solid var(--bd);display:flex;flex-direction:column;z-index:100}
+.sb-logo{padding:22px 18px 18px;border-bottom:1px solid var(--bd);flex-shrink:0}
+.sb-tag{font-size:9px;letter-spacing:4px;color:var(--blue);font-family:'IBM Plex Mono',monospace;font-weight:600;text-transform:uppercase;margin-bottom:5px}
+.sb-name{font-size:16px;font-weight:700;color:var(--t1);letter-spacing:-.3px}
+.sb-period{font-size:10px;color:var(--t3);margin-top:3px;font-family:'IBM Plex Mono',monospace}
+.nav{flex:1;padding:14px 10px;overflow-y:auto}
+.ni{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--r);cursor:pointer;color:var(--t3);font-size:13px;font-weight:500;transition:all .15s;margin-bottom:2px;border:1px solid transparent;user-select:none}
+.ni:hover{background:var(--bg3);color:var(--t1);border-color:var(--bd)}
+.ni.active{background:var(--blue-bg);color:var(--blue);border-color:var(--blue-bd)}
+.ni svg{width:15px;height:15px;flex-shrink:0;opacity:.7}
+.ni.active svg{opacity:1}
+.sb-foot{padding:14px;border-top:1px solid var(--bd);flex-shrink:0}
+.up-zone{border:1px dashed var(--bd2);border-radius:var(--r);padding:14px 12px;text-align:center;cursor:pointer;transition:all .2s;display:block}
+.up-zone:hover,.up-zone.drag{background:var(--blue-bg);border-color:var(--blue-bd)}
+.up-zone input{display:none}
+.up-label{font-size:12px;color:var(--t2);font-weight:500;cursor:pointer;display:block}
+.up-hint{font-size:10px;color:var(--t3);margin-top:3px}
+.sb-keys{font-size:10px;color:var(--t3);text-align:center;margin-top:10px}
+
+/* ── Main ── */
+.main{margin-left:var(--sidebar);min-height:100vh;padding:32px 36px}
+.page-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px}
+.page-title{font-size:22px;font-weight:700;color:var(--t1);letter-spacing:-.4px}
+.page-sub{font-size:12px;color:var(--t3);margin-top:4px}
+.btn{padding:7px 14px;border-radius:var(--r);border:1px solid var(--bd2);background:transparent;color:var(--t2);font-size:12px;font-weight:500;cursor:pointer;font-family:'Outfit',sans-serif;transition:all .15s}
+.btn:hover{background:var(--bg3);color:var(--t1);border-color:var(--bd2)}
+.btn-blue{background:var(--blue-bg);border-color:var(--blue-bd);color:var(--blue)}
+.btn-blue:hover{background:rgba(79,142,247,.2)}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:24px;right:24px;z-index:999;padding:12px 18px;border-radius:var(--r);font-size:12px;font-weight:500;transform:translateY(60px);opacity:0;transition:all .3s cubic-bezier(.34,1.56,.64,1);pointer-events:none;border:1px solid;max-width:320px}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.ok{background:#0c2018;color:var(--green);border-color:var(--green-bd)}
+.toast.err{background:#200c0c;color:var(--red);border-color:var(--red-bd)}
+.toast.info{background:#0c1420;color:var(--blue);border-color:var(--blue-bd)}
+
+/* ── KPI ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:26px}
+.kpi{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--r2);padding:18px 16px;position:relative;overflow:hidden;transition:border .15s}
+.kpi:hover{border-color:var(--bd2)}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--a,var(--blue))}
+.kpi-l{font-size:9px;letter-spacing:2px;color:var(--t3);font-weight:700;text-transform:uppercase;margin-bottom:10px}
+.kpi-v{font-size:20px;font-weight:700;font-family:'IBM Plex Mono',monospace;color:var(--t1);line-height:1}
+.kpi-s{font-size:10px;color:var(--t3);margin-top:6px}
+
+/* ── Card ── */
+.card{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--r2);overflow:hidden;margin-bottom:14px}
+.card-h{padding:13px 18px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
+.card-t{font-size:10px;font-weight:700;letter-spacing:2px;color:var(--t3);text-transform:uppercase}
+
+/* ── Table ── */
+table{width:100%;border-collapse:collapse}
+th{padding:10px 16px;text-align:left;font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--t3);text-transform:uppercase;border-bottom:1px solid var(--bd)}
+td{padding:10px 16px;border-bottom:1px solid var(--bd);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr{cursor:pointer;transition:background .1s}
+tbody tr:hover td{background:var(--bg3)}
+
+/* ── Tier ── */
+.tier{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:6px;font-size:11px;font-weight:700;font-family:'IBM Plex Mono',monospace;flex-shrink:0}
+.tA{background:var(--green-bg);color:var(--green)}
+.tB{background:var(--blue-bg);color:var(--blue)}
+.tC{background:var(--amber-bg);color:var(--amber)}
+.tD{background:var(--red-bg);color:var(--red)}
+
+/* ── VS badge ── */
+.vs{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;padding:2px 8px;border-radius:4px;white-space:nowrap;display:inline-block}
+.vp{background:var(--green-bg);color:var(--green)}
+.vn{background:var(--red-bg);color:var(--red)}
+.vz{background:var(--bg4);color:var(--t3)}
+
+/* ── Mini bar ── */
+.mbar{display:flex;align-items:center;gap:6px}
+.mbar-t{flex:1;height:4px;background:var(--bg4);border-radius:2px;min-width:50px;overflow:hidden}
+.mbar-f{height:4px;border-radius:2px;transition:width .6s cubic-bezier(.4,0,.2,1)}
+
+/* ── Revenue bar ── */
+.rbar{height:3px;background:var(--bg4);border-radius:2px;margin-top:5px;overflow:hidden}
+.rbar-f{height:3px;background:var(--blue);border-radius:2px;transition:width .6s ease}
+.rmono{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:500}
+
+/* ── Split layout ── */
+.split{display:grid;grid-template-columns:200px 1fr;gap:14px;align-items:start}
+.list-panel{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--r2);overflow:hidden;position:sticky;top:0;max-height:calc(100vh - 64px);overflow-y:auto}
+.list-head{padding:10px 14px;border-bottom:1px solid var(--bd);font-size:9px;font-weight:700;letter-spacing:2px;color:var(--t3);text-transform:uppercase;flex-shrink:0}
+.li{padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--bd);border-left:3px solid transparent;transition:all .12s}
+.li:last-child{border-bottom:none}
+.li:hover{background:var(--bg3)}
+.li.sel{background:var(--bg3);border-left-color:var(--blue)}
+.li-name{font-size:12px;font-weight:500;color:var(--t1)}
+.li-sub{font-size:10px;color:var(--t3);font-family:'IBM Plex Mono',monospace;margin-top:2px}
+
+/* ── Seller detail ── */
+.profile{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--r2);padding:20px;margin-bottom:12px}
+.pname{font-size:20px;font-weight:700;letter-spacing:-.4px;margin-bottom:6px}
+.pmeta{display:flex;gap:8px;align-items:center;margin-bottom:18px;flex-wrap:wrap}
+.pm-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--bd);border:1px solid var(--bd);border-radius:9px;overflow:hidden;margin-bottom:16px}
+.pm-item{background:var(--bg2);padding:14px 16px}
+.pm-l{font-size:9px;letter-spacing:1.5px;color:var(--t3);text-transform:uppercase;font-weight:700;margin-bottom:6px}
+.pm-v{font-size:20px;font-weight:700;font-family:'IBM Plex Mono',monospace;color:var(--t1)}
+.pm-vs{font-size:11px;font-family:'IBM Plex Mono',monospace;margin-top:4px}
+.vs-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.vs-item{}
+.vs-lbl{font-size:9px;color:var(--t3);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px}
+.cat-row{display:flex;align-items:center;gap:10px;padding:9px 18px;border-bottom:1px solid var(--bd)}
+.cat-row:last-child{border-bottom:none}
+.cat-name{flex:1;font-size:12px;color:var(--t1)}
+.cat-rev{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--t2);text-align:right;min-width:90px}
+
+/* ── Plan ── */
+.plan-prog{height:4px;background:var(--bg4);border-radius:2px;margin-bottom:16px;overflow:hidden}
+.plan-prog-f{height:4px;border-radius:2px;background:var(--green);transition:width .5s ease}
+.plan-prog-l{font-size:10px;color:var(--t3);margin-bottom:6px;display:flex;justify-content:space-between}
+.day-block{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--r);overflow:hidden;margin-bottom:8px}
+.day-h{padding:9px 16px;background:var(--bg3);border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
+.day-lbl{font-size:10px;font-weight:700;letter-spacing:2px;color:var(--t2);text-transform:uppercase}
+.day-prog{font-size:10px;color:var(--t3);font-family:'IBM Plex Mono',monospace}
+.day-body{padding:10px 12px}
+.action{display:flex;align-items:flex-start;gap:10px;padding:9px 10px;border-radius:8px;border:1px solid var(--bd);margin-bottom:6px;cursor:pointer;transition:all .12s}
+.action:last-child{margin-bottom:0}
+.action:hover{border-color:var(--bd2);background:var(--bg3)}
+.action.done{opacity:.35}
+.action.done .atxt{text-decoration:line-through}
+.chk{width:16px;height:16px;border-radius:4px;border:1.5px solid var(--bd2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;margin-top:2px;transition:all .15s}
+.chk.on{background:var(--green);border-color:var(--green)}
+.abadge{font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;display:inline-block;margin-bottom:4px;letter-spacing:.5px;text-transform:uppercase}
+.atxt{font-size:12px;color:var(--t2);line-height:1.5}
+
+/* ── Focus ── */
+.focus-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fc{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--r2);padding:18px;transition:border .15s}
+.fc:hover{border-color:var(--bd2)}
+.fbadge{font-size:9px;font-weight:700;padding:3px 9px;border-radius:4px;letter-spacing:1px;text-transform:uppercase;display:inline-block;margin-bottom:10px}
+.fname{font-size:14px;font-weight:600;color:var(--t1);margin-bottom:5px}
+.fsub{font-size:11px;color:var(--t2);line-height:1.6}
+.flink{margin-top:10px;font-size:11px;color:var(--blue);cursor:pointer;font-weight:500;display:inline-block}
+.flink:hover{text-decoration:underline}
+
+/* ── Category view ── */
+.cr{display:flex;align-items:center;gap:10px;padding:10px 18px;border-bottom:1px solid var(--bd)}
+.cr:last-child{border-bottom:none}
+.cr-rank{font-size:11px;color:var(--t3);font-family:'IBM Plex Mono',monospace;min-width:20px}
+.cr-name{flex:1;font-size:12px;font-weight:500;color:var(--t1)}
+.cr-rev{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--t2);min-width:100px;text-align:right}
+
+/* ── Search & pills ── */
+.search{width:100%;padding:9px 14px;border-radius:var(--r);border:1px solid var(--bd);background:var(--bg2);color:var(--t1);font-size:13px;font-family:'Outfit',sans-serif;margin-bottom:14px;outline:none;transition:border .15s}
+.search:focus{border-color:var(--bd2)}
+.search::placeholder{color:var(--t3)}
+.pills{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.pill{padding:5px 13px;border-radius:20px;border:1px solid var(--bd);background:transparent;color:var(--t3);font-size:11px;font-weight:500;cursor:pointer;font-family:'Outfit',sans-serif;transition:all .12s}
+.pill:hover{border-color:var(--bd2);color:var(--t1)}
+.pill.on{background:var(--blue-bg);border-color:var(--blue-bd);color:var(--blue)}
+
+/* ── Misc ── */
+.empty{color:var(--t3);font-size:13px;padding:40px;text-align:center}
+.section-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.section-t{font-size:14px;font-weight:600;color:var(--t1)}
+.anim{animation:fadeUp .22s ease both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:3px}
+@media print{.sidebar,.toast{display:none!important}.main{margin-left:0!important;padding:16px!important}}
+@media(max-width:768px){.sidebar{display:none}.main{margin-left:0;padding:18px}.kpi-grid{grid-template-columns:repeat(2,1fr)}.split,.focus-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sb-logo">
+    <div class="sb-tag">Sales OS</div>
+    <div class="sb-name" id="sbName">ДМ2 Мост-2</div>
+    <div class="sb-period" id="sbPeriod">Квітень 2026</div>
+  </div>
+  <nav class="nav" id="nav">
+    <div class="ni active" data-v="overview" onclick="go('overview')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1.2"/><rect x="9" y="1" width="6" height="6" rx="1.2"/><rect x="1" y="9" width="6" height="6" rx="1.2"/><rect x="9" y="9" width="6" height="6" rx="1.2"/></svg>
+      Огляд
+    </div>
+    <div class="ni" data-v="sellers" onclick="go('sellers')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="5" r="2.5"/><path d="M1 13c0-2.76 2.24-5 5-5s5 2.24 5 5"/><circle cx="12.5" cy="5.5" r="1.8"/><path d="M15 12c0-1.66-1.12-2.5-2.5-2.5"/></svg>
+      Продавці
+    </div>
+    <div class="ni" data-v="categories" onclick="go('categories')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h12M2 12h12"/><circle cx="5" cy="4" r="1.2" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="1.2" fill="currentColor" stroke="none"/><circle cx="11" cy="12" r="1.2" fill="currentColor" stroke="none"/></svg>
+      Категорії
+    </div>
+    <div class="ni" data-v="plan" onclick="go('plan')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="1.5"/><path d="M5.5 8l2 2 3.5-3.5"/></svg>
+      План дій
+    </div>
+    <div class="ni" data-v="focus" onclick="go('focus')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><circle cx="8" cy="8" r="2.5"/><path d="M8 2v1.5M8 12.5V14M2 8h1.5M12.5 8H14"/></svg>
+      Фокус дня
+    </div>
+  </nav>
+  <div class="sb-foot">
+    <label class="up-zone" id="dropZone">
+      <input type="file" id="fileInput" accept=".xlsx,.xls">
+      <div class="up-label">Завантажити звіт</div>
+      <div class="up-hint">.xlsx · перетягни або натисни</div>
+    </label>
+    <div class="sb-keys">Клавіші 1–5 для навігації</div>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="page-head">
+    <div>
+      <div class="page-title" id="pageTitle">Огляд магазину</div>
+      <div class="page-sub" id="pageSub">01.04 – 17.04.2026 · ДМ2 Мост-2</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn" onclick="window.print()">Друк / PDF</button>
+    </div>
+  </div>
+  <div id="kpiRow" class="kpi-grid"></div>
+  <div id="content" class="anim"></div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══ CONSTANTS ═══════════════════════════════════════════════════════════════
+const SHORT={
+  'Зуєва Ольга Андріївна':'Зуєва О.','Кисельов Дмитро Сергійович':'Кисельов Д.',
+  'Гаврихів Роман Вадимович':'Гаврихів Р.','Пачковський Ілля Владиславович':'Пачковський І.',
+  'Фесенко Ярослав Юрійович':'Фесенко Я.','Дудник Анастасія Євгеніївна':'Дудник А.',
+  'Бугас Данило Олександрович':'Бугас Д.','Куценко Майя Сергіївна':'Куценко М.',
+  'Устинова Людмила Олександрівна':'Устинова Л.','Міщук Анастасія Володимирівна':'Міщук А.',
+  'Переяслов Микита Олегович':'Переяслов М.','Гапонов Ігор Євгенович':'Гапонов І.',
+  'Дідусь Ярослав Валентинович':'Дідусь Я.'
+};
+
+const ACTDEF=[
+  {type:'talk',label:'Особиста бесіда',color:'#4f8ef7',bg:'rgba(79,142,247,.15)'},
+  {type:'train',label:'Навчання',color:'#a78bfa',bg:'rgba(167,139,250,.15)'},
+  {type:'test',label:'Тестова консультація',color:'#f5a623',bg:'rgba(245,166,35,.15)'},
+  {type:'coaching',label:'Тренінг',color:'#34d399',bg:'rgba(52,211,153,.15)'},
+  {type:'stock',label:'Контроль залишків',color:'#f87171',bg:'rgba(248,113,113,.15)'}
+];
+
+const VIEWS={
+  overview:'Огляд магазину',sellers:'Продавці',
+  categories:'Аналіз категорій',plan:'План дій',focus:'Фокус дня'
+};
+
+const PLANS={
+  'Зуєва О.':[
+    {day:'Пн',actions:[{type:'talk',text:'Обговорити ASP Мультипіч та Кавомашина — нижче бенчмарку'},{type:'stock',text:'Перевірити залишки Philips прасок (лідер категорії)'}]},
+    {day:'Вт',actions:[{type:'train',text:'Навчання апселлу — Кавомашина та Пилосос ручний'}]},
+    {day:'Ср',actions:[{type:'test',text:'Тестова консультація — продаж пилососа вище середньої ціни'}]},
+    {day:'Чт',actions:[{type:'stock',text:'Аудит залишків — слабкі категорії Навушники та Мультипіч'}]},
+    {day:'Пт',actions:[{type:'coaching',text:'Тренінг: підвищення ASP Мультипіч — від 4407 до 5000+'}]}
+  ],
+  'Кисельов Д.':[
+    {day:'Пн',actions:[{type:'talk',text:'Кухонна машина — виторг на 3.7% від бенч., розібрати разом'}]},
+    {day:'Вт',actions:[{type:'train',text:'Навчання продуктів Bosch/SEB для Кухонних машин'},{type:'stock',text:'Перевірити залишки Кухонна машина'}]},
+    {day:'Ср',actions:[{type:'test',text:'Тестова консультація — Акустична система'}]},
+    {day:'Чт',actions:[{type:'coaching',text:'Тренінг: перенести навичку з Навушників (сильна) на інші категорії'}]},
+    {day:'Пт',actions:[{type:'talk',text:'Підсумки тижня, постановка фокусу на наступний'}]}
+  ],
+  'Гаврихів Р.':[
+    {day:'Пн',actions:[{type:'talk',text:'Багато штук (+37%), але низький ASP 3215 — обговорити стратегію'}]},
+    {day:'Вт',actions:[{type:'train',text:'Преміальний асортимент Мультипіч (Ninja, Philips Airfryer)'}]},
+    {day:'Ср',actions:[{type:'test',text:'Тестова: продаж Philips фену замість базового моделі'}]},
+    {day:'Чт',actions:[{type:'stock',text:'Тример — результат +231% від бенчм. Тримати наявність!'}]},
+    {day:'Пт',actions:[{type:'coaching',text:'Тренінг: продаж за цінністю, а не за ціною'}]}
+  ],
+  'Пачковський І.':[
+    {day:'Пн',actions:[{type:'talk',text:'Результати сильні — обговорити амбіції та цілі на місяць'}]},
+    {day:'Вт',actions:[{type:'train',text:'Навчання по Пилосос ручний — слабка категорія (-84%)'}]},
+    {day:'Ср',actions:[{type:'test',text:'Тестова консультація — Пилосос ручний'}]},
+    {day:'Чт',actions:[{type:'stock',text:'Перевірити залишки — Пилосос робот (лідер в категорії)'}]},
+    {day:'Пт',actions:[{type:'coaching',text:'Груповий тренінг — Пачковський як наставник для тиру C'}]}
+  ],
+  'Фесенко Я.':[
+    {day:'Пн',actions:[{type:'talk',text:'Навушники сильна (+83%), але Пилосос ручний -26% — фокус'}]},
+    {day:'Вт',actions:[{type:'train',text:'Навчання Пилосос ручний та Кавомашина'}]},
+    {day:'Ср',actions:[{type:'test',text:'Тестова консультація — Кавомашина'}]},
+    {day:'Чт',actions:[{type:'stock',text:'Аудит залишків — З/пристрій для моб. (сильна +107%)'}]},
+    {day:'Пт',actions:[{type:'coaching',text:'Підсумки тижня, постановка мети на ASP +10%'}]}
+  ],
+  'Дудник А.':[
+    {day:'Пн',actions:[{type:'talk',text:'Праски +176% — молодець! Навушники -48% — що заважає?'}]},
+    {day:'Вт',actions:[{type:'train',text:'Навчання — Навушники та Акустична система'}]},
+    {day:'Ср',actions:[{type:'test',text:'Тестова консультація — Навушники'}]},
+    {day:'Чт',actions:[{type:'stock',text:'Перевірити залишки — Чохол для моб. (сильна +159%)'}]},
+    {day:'Пт',actions:[{type:'coaching',text:'Тренінг: ASP — сер. чек лише 2683, є великий потенціал'}]}
+  ],
+  'Бугас Д.':[
+    {day:'Пн',actions:[{type:'talk',text:'Зубна щітка +314% — відмінно! Розібрати успіх і тиражувати'}]},
+    {day:'Вт',actions:[{type:'train',text:'Навчання по Навушниках (зараз -0.7%) та Мультипіч (-36%)'}]},
+    {day:'Ср',actions:[{type:'test',text:'Тестова консультація — Навушники'}]},
+    {day:'Чт',actions:[{type:'coaching',text:'Тренінг: підвищення ASP. Зараз ASP vs -9.4%'}]},
+    {day:'Пт',actions:[{type:'talk',text:'Особиста бесіда — мотивація, цілі продавця на місяць'}]}
+  ],
+  'Куценко М.':[
+    {day:'Пн',actions:[{type:'talk',text:'Навушники сильна (+166%), але виторг загалом -15% — чому?'}]},
+    {day:'Вт',actions:[{type:'train',text:'Навчання — Мультипіч (-59%) та Пилосос ручний (-42%)'}]},
+    {day:'Ср',actions:[{type:'test',text:'Тестова консультація — Мультипіч'}]},
+    {day:'Чт',actions:[{type:'stock',text:'Перевірити залишки — Пароочисник (продає добре)'}]},
+    {day:'Пт',actions:[{type:'coaching',text:'Тренінг: штуки vs.виторг — фокус на більш дорогі категорії'}]}
+  ],
+  'Устинова Л.':[
+    {day:'Пн',actions:[{type:'talk',text:'Навушники +75%, Праски +93% — що робиш правильно?'}]},
+    {day:'Вт',actions:[{type:'train',text:'Навчання — Мультипіч (-37%) та Пилосос традиційний (-75%)'}]},
+    {day:'Ср',actions:[{type:'test',text:'Тестова консультація — Мультипіч'}]},
+    {day:'Чт',actions:[{type:'stock',text:'Аудит залишків — слабкі категорії'}]},
+    {day:'Пт',actions:[{type:'coaching',text:'Тренінг: збільшення штук — зараз лише 67, потенціал є'}]}
+  ],
+  'Міщук А.':[
+    {day:'Пн',actions:[{type:'talk',text:'ПРІОРИТЕТ: виторг -58% нижче бенчм. Виявити причину'}]},
+    {day:'Вт',actions:[{type:'train',text:'Інтенсивне навчання: Мультипіч + Навушники + Праски'},{type:'test',text:'Тестова консультація одразу після навчання'}]},
+    {day:'Ср',actions:[{type:'coaching',text:'Практична робота в парі зі старшим продавцем (Зуєва/Кисельов)'}]},
+    {day:'Чт',actions:[{type:'test',text:'Контрольна тестова консультація — 3 різних категорії'}]},
+    {day:'Пт',actions:[{type:'talk',text:'Підсумки: що покращилось, конкретний план на наступний тиждень'}]}
+  ],
+  'Переяслов М.':[
+    {day:'Пн',actions:[{type:'talk',text:'КРИТИЧНО: виторг -64% нижче бенчм. Першочергова розмова'}]},
+    {day:'Вт',actions:[{type:'train',text:'Базове навчання: Мультипіч + Навушники'}]},
+    {day:'Ср',actions:[{type:'test',text:'2 тестові консультації під спостереженням керівника'}]},
+    {day:'Чт',actions:[{type:'coaching',text:'Наставництво: тандем з Гаврихівим або Кисельовим (повний день)'}]},
+    {day:'Пт',actions:[{type:'talk',text:'Якщо немає динаміки — переглянути розстановку'}]}
+  ],
+  default:[
+    {day:'Пн',actions:[{type:'talk',text:'Огляд показників тижня, постановка завдань'}]},
+    {day:'Вт',actions:[{type:'train',text:'Навчання по слабкій категорії'}]},
+    {day:'Ср',actions:[{type:'test',text:'Тестова консультація'}]},
+    {day:'Чт',actions:[{type:'stock',text:'Перевірка залишків ключових категорій'}]},
+    {day:'Пт',actions:[{type:'coaching',text:'Груповий тренінг + підсумки тижня'}]}
+  ]
+};
+
+const DEFAULT_SELLERS=[
+  {name:'Зуєва О.',full:'Зуєва Ольга',revenue:423094,units:96,asp:4407,revVs:.224,aspVs:-.004,unitsVs:.151,cats:[
+    {cat:'Пилосос ручний',rev:78754,revVs:.742,aspVs:.140},{cat:'Праски та прасувальні',rev:68527,revVs:2.357,aspVs:.584},
+    {cat:'Мультипіч',rev:48514,revVs:.339,aspVs:.098},{cat:'Кавомашина',rev:45117,revVs:.072,aspVs:-.067},
+    {cat:'Навушники',rev:39019,revVs:.349,aspVs:.010},{cat:'Пилосос традиційний',rev:24680,revVs:.166,aspVs:.096},
+    {cat:'Зубна щітка електр.',rev:23593,revVs:1.653,aspVs:.463},{cat:'Кухонна машина',rev:16997,revVs:-.538,aspVs:-.454},
+    {cat:'Фен',rev:11295,revVs:.288,aspVs:-.104},{cat:'Чайник електр.',rev:10967,revVs:.763,aspVs:-.054},
+    {cat:'З/пристрій для моб.',rev:10371,revVs:.393,aspVs:.264},{cat:'Миша комп.',rev:10352,revVs:.553,aspVs:-.078},
+    {cat:'Мікрохвильова піч',rev:9198,revVs:-.378,aspVs:.232},{cat:'Пароочисник',rev:7999,revVs:-.440,aspVs:.035},
+    {cat:'Блендер ручний',rev:7597,revVs:-.290,aspVs:-.008},{cat:'Пилосос робот',rev:4498,revVs:-.867,aspVs:-.790},
+    {cat:'Чохол для моб.',rev:3717,revVs:-.412,aspVs:-.292},{cat:'Тример',rev:1899,revVs:-.713,aspVs:-.143}
+  ]},
+  {name:'Кисельов Д.',full:'Кисельов Дмитро',revenue:412318,units:96,asp:4295,revVs:.431,aspVs:.261,unitsVs:.166,cats:[
+    {cat:'Навушники',rev:79826,revVs:1.760,aspVs:1.066},{cat:'Мультипіч',rev:62212,revVs:.716,aspVs:-.014},
+    {cat:'Акустична система',rev:39607,revVs:1.339,aspVs:.545},{cat:'Кухонна машина',rev:38104,revVs:.037,aspVs:-.511},
+    {cat:'Фен',rev:32146,revVs:2.665,aspVs:3.249},{cat:'Пилосос традиційний',rev:24944,revVs:.179,aspVs:-.114},
+    {cat:'Кавомашина',rev:23999,revVs:-.430,aspVs:-.007},{cat:'Миша комп.',rev:16131,revVs:1.421,aspVs:.916},
+    {cat:'Блендер ручний',rev:13679,revVs:.278,aspVs:.071},{cat:'Тример',rev:13491,revVs:1.040,aspVs:.015},
+    {cat:'З/пристрій для моб.',rev:11699,revVs:.571,aspVs:.425},{cat:'Праски та прасувальні',rev:10293,revVs:-.496,aspVs:-.477},
+    {cat:'Чохол для моб.',rev:9034,revVs:.428,aspVs:.377},{cat:'Чайник електр.',rev:8714,revVs:.401,aspVs:-.248},
+    {cat:'Пароочисник',rev:7998,revVs:-.440,aspVs:.035},{cat:'Пилосос ручний',rev:7998,revVs:-.823,aspVs:-.421},
+    {cat:'Мікрохвильова піч',rev:6446,revVs:-.564,aspVs:-.136},{cat:'Зубна щітка електр.',rev:5997,revVs:-.326,aspVs:-.070}
+  ]},
+  {name:'Гаврихів Р.',full:'Гаврихів Роман',revenue:376147,units:117,asp:3215,revVs:.465,aspVs:.077,unitsVs:.372,cats:[
+    {cat:'Мультипіч',rev:78540,revVs:1.167,aspVs:.131},{cat:'Пилосос ручний',rev:51716,revVs:.144,aspVs:.248},
+    {cat:'Навушники',rev:42343,revVs:.464,aspVs:-.123},{cat:'Фен',rev:27742,revVs:2.163,aspVs:.375},
+    {cat:'Праски та прасувальні',rev:22901,revVs:.122,aspVs:-.168},{cat:'Тример',rev:21920,revVs:2.314,aspVs:.099},
+    {cat:'Акустична система',rev:18499,revVs:.092,aspVs:1.165},{cat:'Чайник електр.',rev:15120,revVs:1.431,aspVs:.087},
+    {cat:'Блендер ручний',rev:14926,revVs:.394,aspVs:.461},{cat:'Пилосос традиційний',rev:12616,revVs:-.404,aspVs:-.253},
+    {cat:'Чохол для моб.',rev:12258,revVs:.938,aspVs:.168},{cat:'Кухонна машина',rev:12159,revVs:-.669,aspVs:-.219},
+    {cat:'Мікрохвильова піч',rev:11964,revVs:-.190,aspVs:-.199},{cat:'З/пристрій для моб.',rev:9428,revVs:.266,aspVs:-.138},
+    {cat:'Миша комп.',rev:8447,revVs:.268,aspVs:-.140},{cat:'Пароочисник',rev:7998,revVs:-.440,aspVs:.035},
+    {cat:'Зубна щітка електр.',rev:7570,revVs:-.149,aspVs:-.218}
+  ]},
+  {name:'Пачковський І.',full:'Пачковський Ілля',revenue:368267,units:92,asp:4003,revVs:.161,aspVs:.097,unitsVs:.125,cats:[
+    {cat:'Мультипіч',rev:71991,revVs:.986,aspVs:.426},{cat:'Навушники',rev:56744,revVs:.962,aspVs:-.119},
+    {cat:'Кухонна машина',rev:42798,revVs:.164,aspVs:.375},{cat:'Кавомашина',rev:42498,revVs:.010,aspVs:.758},
+    {cat:'Пилосос робот',rev:34999,revVs:.037,aspVs:.637},{cat:'Зубна щітка електр.',rev:21065,revVs:1.369,aspVs:-.067},
+    {cat:'Блендер ручний',rev:13779,revVs:.287,aspVs:-.101},{cat:'Праски та прасувальні',rev:11195,revVs:-.452,aspVs:-.051},
+    {cat:'Миша комп.',rev:11042,revVs:.657,aspVs:-.285},{cat:'З/пристрій для моб.',rev:8893,revVs:.194,aspVs:.393},
+    {cat:'Пилосос традиційний',rev:8733,revVs:-.587,aspVs:-.225},{cat:'Чайник електр.',rev:8589,revVs:.381,aspVs:.058},
+    {cat:'Фен',rev:8296,revVs:-.054,aspVs:-.178},{cat:'Чохол для моб.',rev:7594,revVs:.200,aspVs:.930},
+    {cat:'Пилосос ручний',rev:7047,revVs:-.844,aspVs:-.745},{cat:'Тример',rev:6546,revVs:-.010,aspVs:-.015},
+    {cat:'Мікрохвильова піч',rev:6458,revVs:-.563,aspVs:-.135}
+  ]},
+  {name:'Фесенко Я.',full:'Фесенко Ярослав',revenue:343293,units:83,asp:4136,revVs:.067,aspVs:.092,unitsVs:.037,cats:[
+    {cat:'Навушники',rev:52860,revVs:.828,aspVs:.824},{cat:'Мультипіч',rev:42999,revVs:.186,aspVs:.136},
+    {cat:'Пилосос робот',rev:34999,revVs:.037,aspVs:.637},{cat:'Пилосос ручний',rev:33608,revVs:-.257,aspVs:-.392},
+    {cat:'Кавомашина',rev:23248,revVs:-.447,aspVs:-.039},{cat:'Праски та прасувальні',rev:21530,revVs:.055,aspVs:-.088},
+    {cat:'З/пристрій для моб.',rev:15441,revVs:1.073,aspVs:.411},{cat:'Акустична система',rev:14495,revVs:-.144,aspVs:-.576},
+    {cat:'Зубна щітка електр.',rev:12997,revVs:.461,aspVs:1.015},{cat:'Миша комп.',rev:12623,revVs:.894,aspVs:-.001},
+    {cat:'Тример',rev:10933,revVs:.653,aspVs:.234},{cat:'Фен',rev:9345,revVs:.065,aspVs:-.259},
+    {cat:'Блендер ручний',rev:8410,revVs:-.214,aspVs:-.177},{cat:'Мікрохвильова піч',rev:11851,revVs:-.198,aspVs:.058},
+    {cat:'Чохол для моб.',rev:4295,revVs:-.321,aspVs:.310}
+  ]},
+  {name:'Дудник А.',full:'Дудник Анастасія',revenue:324693,units:121,asp:2683,revVs:.190,aspVs:.059,unitsVs:.213,cats:[
+    {cat:'Мультипіч',rev:57020,revVs:.573,aspVs:.129},{cat:'Праски та прасувальні',rev:56288,revVs:1.758,aspVs:.590},
+    {cat:'Пилосос традиційний',rev:32674,revVs:.544,aspVs:.934},{cat:'Пилосос ручний',rev:29998,revVs:-.337,aspVs:1.171},
+    {cat:'Кавомашина',rev:22799,revVs:-.458,aspVs:-.057},{cat:'Чохол для моб.',rev:16373,revVs:1.588,aspVs:-.433},
+    {cat:'Фен',rev:15970,revVs:.821,aspVs:.266},{cat:'З/пристрій для моб.',rev:12947,revVs:.738,aspVs:.092},
+    {cat:'Мікрохвильова піч',rev:11757,revVs:-.204,aspVs:.050},{cat:'Зубна щітка електр.',rev:11205,revVs:.260,aspVs:.158},
+    {cat:'Блендер ручний',rev:9996,revVs:-.066,aspVs:-.021},{cat:'Навушники',rev:15156,revVs:-.476,aspVs:-.529},
+    {cat:'Чайник електр.',rev:6392,revVs:.028,aspVs:-.081}
+  ]},
+  {name:'Бугас Д.',full:'Бугас Данило',revenue:251801,units:86,asp:2928,revVs:.032,aspVs:-.094,unitsVs:.076,cats:[
+    {cat:'Пилосос ручний',rev:55693,revVs:.232,aspVs:.008},{cat:'Зубна щітка електр.',rev:36841,revVs:3.142,aspVs:.904},
+    {cat:'Навушники',rev:28707,revVs:-.007,aspVs:-.443},{cat:'Праски та прасувальні',rev:26670,revVs:.307,aspVs:.130},
+    {cat:'Мультипіч',rev:23120,revVs:-.362,aspVs:-.084},{cat:'З/пристрій для моб.',rev:11314,revVs:.519,aspVs:.379},
+    {cat:'Блендер ручний',rev:10792,revVs:.008,aspVs:-.155},{cat:'Чохол для моб.',rev:9268,revVs:.465,aspVs:.178},
+    {cat:'Мікрохвильова піч',rev:11637,revVs:-.213,aspVs:.039},{cat:'Пароочисник',rev:7999,revVs:-.440,aspVs:.035},
+    {cat:'Пилосос традиційний',rev:8823,revVs:-.583,aspVs:-.217}
+  ]},
+  {name:'Куценко М.',full:'Куценко Майя',revenue:250786,units:75,asp:3344,revVs:-.152,aspVs:.068,unitsVs:-.188,cats:[
+    {cat:'Навушники',rev:76973,revVs:1.661,aspVs:.494},{cat:'Пилосос ручний',rev:25998,revVs:-.425,aspVs:-.059},
+    {cat:'Кавомашина',rev:23999,revVs:-.430,aspVs:-.007},{cat:'Мультипіч',rev:14897,revVs:-.589,aspVs:-.214},
+    {cat:'Акустична система',rev:13999,revVs:-.173,aspVs:.639},{cat:'З/пристрій для моб.',rev:11929,revVs:.602,aspVs:.006},
+    {cat:'Пароочисник',rev:11497,revVs:-.195,aspVs:-.256},{cat:'Миша комп.',rev:9493,revVs:.425,aspVs:.127},
+    {cat:'Блендер ручний',rev:8697,revVs:-.188,aspVs:.703},{cat:'Пилосос традиційний',rev:13797,revVs:-.348,aspVs:.225}
+  ]},
+  {name:'Устинова Л.',full:'Устинова Людмила',revenue:237801,units:67,asp:3549,revVs:-.082,aspVs:.048,unitsVs:-.115,cats:[
+    {cat:'Навушники',rev:50538,revVs:.747,aspVs:.427},{cat:'Праски та прасувальні',rev:39488,revVs:.935,aspVs:.116},
+    {cat:'Пилосос ручний',rev:38546,revVs:-.147,aspVs:-.070},{cat:'Мультипіч',rev:22789,revVs:-.371,aspVs:-.278},
+    {cat:'Тример',rev:15275,revVs:1.310,aspVs:.149},{cat:'Чохол для моб.',rev:9700,revVs:.533,aspVs:1.958},
+    {cat:'Фен',rev:9378,revVs:.069,aspVs:-.380},{cat:'Блендер ручний',rev:10146,revVs:-.052,aspVs:.324},
+    {cat:'Миша комп.',rev:7346,revVs:.102,aspVs:.309},{cat:'Кухонна машина',rev:8998,revVs:-.755,aspVs:-.422}
+  ]},
+  {name:'Міщук А.',full:'Міщук Анастасія',revenue:104787,units:35,asp:2994,revVs:-.578,aspVs:-.205,unitsVs:-.485,cats:[
+    {cat:'Мультипіч',rev:28643,revVs:-.210,aspVs:-.244},{cat:'Навушники',rev:24649,revVs:-.148,aspVs:.276},
+    {cat:'Пилосос традиційний',rev:14237,revVs:-.327,aspVs:-.157},{cat:'Пилосос ручний',rev:8549,revVs:-.811,aspVs:-.381},
+    {cat:'Тример',rev:7444,revVs:.126,aspVs:.120},{cat:'Миша комп.',rev:4894,revVs:-.266,aspVs:-.303},
+    {cat:'Праски та прасувальні',rev:3996,revVs:-.804,aspVs:-.492},{cat:'Фен',rev:3233,revVs:-.631,aspVs:-.359}
+  ]},
+  {name:'Переяслов М.',full:'Переяслов Микита',revenue:50668,units:18,asp:2815,revVs:-.637,aspVs:.131,unitsVs:-.679,cats:[
+    {cat:'Навушники',rev:9597,revVs:-.668,aspVs:-.007},{cat:'Фен',rev:8999,revVs:.026,aspVs:2.568},
+    {cat:'Мультипіч',rev:8998,revVs:-.752,aspVs:.426},{cat:'Праски та прасувальні',rev:6876,revVs:-.663,aspVs:-.126},
+    {cat:'Зубна щітка електр.',rev:5338,revVs:-.400,aspVs:-.172},{cat:'Чайник електр.',rev:5197,revVs:-.164,aspVs:1.242}
+  ]}
+];
+
+// ═══ STATE ═══════════════════════════════════════════════════════════════════
+const S={
+  view:'overview', sellers:[], cats:[], selSeller:null, selCat:null,
+  tierFilter:'all', search:'', checks:{}
+};
+
+// ═══ UTILS ═══════════════════════════════════════════════════════════════════
+const fmt=n=>new Intl.NumberFormat('uk-UA').format(Math.round(n));
+const pct=(n,force)=>(n==null?'—':(n>=0?'+':'')+Math.round(n*100)+'%');
+const avg=a=>a.length?a.reduce((s,v)=>s+v,0)/a.length:0;
+const tc=t=>t==='A'?'tA':t==='B'?'tB':t==='C'?'tC':'tD';
+const vc=v=>v>=.03?'vp':v<=-.03?'vn':'vz';
+const adef=t=>ACTDEF.find(a=>a.type===t)||ACTDEF[0];
+
+function assignTiers(arr){
+  const sorted=[...arr].filter(s=>s.revenue>0).sort((a,b)=>b.revenue-a.revenue);
+  const n=sorted.length;
+  sorted.forEach((s,i)=>{
+    if(i<Math.ceil(n*.36))s.tier='A';
+    else if(i<Math.ceil(n*.55))s.tier='B';
+    else if(i<Math.ceil(n*.82))s.tier='C';
+    else s.tier='D';
+  });
+  arr.filter(s=>s.revenue<=0).forEach(s=>s.tier='D');
+  return arr;
+}
+
+function buildCatIndex(sellers){
+  const m={};
+  sellers.forEach(s=>(s.cats||[]).forEach(c=>{
+    if(!m[c.cat])m[c.cat]={cat:c.cat,sellers:[]};
+    m[c.cat].sellers.push({name:s.name,full:s.full,rev:c.rev,revVs:c.revVs,aspVs:c.aspVs,tier:s.tier});
+  }));
+  return Object.values(m).sort((a,b)=>a.cat.localeCompare(b.cat));
+}
+
+function toast(msg,type='info'){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className='toast '+type+' show';
+  clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),3500);
+}
+
+function vsBar(v,max=2){
+  const c=Math.max(-max,Math.min(max,v||0));
+  const p=Math.round(Math.abs(c)/max*100);
+  const col=v>=0?'#34d399':'#f87171';
+  return `<div class="mbar"><div class="mbar-t"><div class="mbar-f" style="width:${p}%;background:${col}"></div></div><span class="vs ${vc(v)}">${pct(v)}</span></div>`;
+}
+
+// ═══ PARSE ════════════════════════════════════════════════════════════════════
+function parseFile(ab){
+  const wb=XLSX.read(ab,{type:'array'});
+  const ws=wb.Sheets[wb.SheetNames[0]];
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+  const sm={};
+  for(let i=18;i<rows.length;i++){
+    const r=rows[i];
+    if(String(r[7]||'').trim()!=='Прод')continue;
+    const brand=String(r[4]||'').trim();
+    if(brand&&brand!=='nan'&&brand.length>2&&!/^\s+$/.test(brand))continue;
+    const seller=String(r[5]||'').trim();
+    if(!seller||seller.length<3||/^\s+$/.test(seller))continue;
+    const cat=String(r[2]||'').trim();
+    if(!cat)continue;
+    const rev=parseFloat(r[9])||0, revVs=parseFloat(r[11])||0;
+    const units=parseFloat(r[12])||0, unitsVs=parseFloat(r[14])||0;
+    const aspVs=parseFloat(r[17])||0;
+    const sn=SHORT[seller]||seller.split(' ').slice(0,2).join(' ');
+    if(!sm[seller])sm[seller]={name:sn,full:seller,revenue:0,units:0,revVsArr:[],aspVsArr:[],unitsVsArr:[],cats:{}};
+    sm[seller].revenue+=rev; sm[seller].units+=units;
+    sm[seller].revVsArr.push(revVs); sm[seller].aspVsArr.push(aspVs); sm[seller].unitsVsArr.push(unitsVs);
+    if(rev>0){
+      if(!sm[seller].cats[cat])sm[seller].cats[cat]={rev:0,units:0,rvArr:[],avArr:[]};
+      sm[seller].cats[cat].rev+=rev; sm[seller].cats[cat].units+=units;
+      sm[seller].cats[cat].rvArr.push(revVs); sm[seller].cats[cat].avArr.push(aspVs);
+    }
+  }
+  const sellers=Object.values(sm).map(s=>({
+    name:s.name,full:s.full,revenue:s.revenue,units:s.units,
+    asp:s.units>0?s.revenue/s.units:0,
+    revVs:avg(s.revVsArr),aspVs:avg(s.aspVsArr),unitsVs:avg(s.unitsVsArr),
+    cats:Object.entries(s.cats).map(([cat,v])=>({
+      cat,rev:v.rev,units:v.units,revVs:avg(v.rvArr),aspVs:avg(v.avArr)
+    })).sort((a,b)=>b.rev-a.rev)
+  })).sort((a,b)=>b.revenue-a.revenue);
+  return {sellers:assignTiers(sellers), cats:buildCatIndex(sellers)};
+}
+
+// ═══ RENDER KPI ════════════════════════════════════════════════════════════
+function renderKPI(){
+  const s=S.sellers.filter(x=>x.revenue>0);
+  const totR=s.reduce((a,x)=>a+x.revenue,0);
+  const totU=s.reduce((a,x)=>a+x.units,0);
+  const aspA=totU>0?totR/totU:0;
+  const vsA=s.length?avg(s.map(x=>x.revVs)):0;
+  const d=s.filter(x=>x.tier==='D').length;
+  const defs=[
+    {l:'Виторг',v:fmt(totR)+' ₴',s:'за поточний період',a:'var(--blue)'},
+    {l:'Штуки продано',v:fmt(totU),s:'одиниць',a:'var(--purple)'},
+    {l:'Середній чек',v:fmt(aspA)+' ₴',s:'грн на одиницю',a:'var(--green)'},
+    {l:'Vs бенчмарк',v:pct(vsA),s:'ср. відхилення магазину',a:vsA>=0?'var(--green)':'var(--red)'},
+    {l:'Продавців',v:String(s.length),s:`тир D (увага): ${d}`,a:d>0?'var(--red)':'var(--amber)'}
+  ];
+  document.getElementById('kpiRow').innerHTML=defs.map(k=>`
+    <div class="kpi" style="--a:${k.a}">
+      <div class="kpi-l">${k.l}</div>
+      <div class="kpi-v" style="color:${k.a}">${k.v}</div>
+      <div class="kpi-s">${k.s}</div>
+    </div>`).join('');
+}
+
+// ═══ VIEWS ═══════════════════════════════════════════════════════════════════
+function renderOverview(){
+  const sellers=S.sellers.filter(s=>s.revenue>0&&(S.tierFilter==='all'||s.tier===S.tierFilter));
+  const maxR=Math.max(...sellers.map(s=>s.revenue),1);
+  const filterPills=['all','A','B','C','D'].map(t=>`
+    <button class="pill${S.tierFilter===t?' on':''}" onclick="S.tierFilter='${t}';render()">${t==='all'?'Всі':('Тир '+t)}</button>`).join('');
+  const rows=sellers.map((s,i)=>`
+    <tr onclick="S.view='sellers';S.selSeller='${s.name}';go('sellers')">
+      <td style="color:var(--t3);font-family:'IBM Plex Mono',monospace">${i+1}</td>
+      <td>
+        <div style="font-weight:600;font-size:13px">${s.full}</div>
+        <div style="font-size:10px;color:var(--t3);margin-top:2px">${s.name}</div>
+      </td>
+      <td><span class="tier ${tc(s.tier)}">${s.tier}</span></td>
+      <td class="rev-cell">
+        <div class="rmono">${fmt(s.revenue)} ₴</div>
+        <div class="rbar"><div class="rbar-f" style="width:${Math.round(s.revenue/maxR*100)}%"></div></div>
+      </td>
+      <td class="rmono" style="color:var(--t2)">${s.units}</td>
+      <td class="rmono" style="color:var(--t2)">${fmt(s.asp)}</td>
+      <td>${vsBar(s.revVs)}</td>
+      <td>${vsBar(s.aspVs)}</td>
+      <td>${vsBar(s.unitsVs)}</td>
+    </tr>`).join('');
+
+  return `
+    <div class="pills">${filterPills}</div>
+    <div class="card">
+      <div class="card-h">
+        <span class="card-t">Рейтинг продавців</span>
+        <span style="font-size:11px;color:var(--t3)">клік на рядку → профіль продавця</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr>
+            <th>#</th><th>Продавець</th><th>Тир</th>
+            <th>Виторг ₴</th><th>Шт</th><th>ASP</th>
+            <th>Виторг vs</th><th>ASP vs</th><th>Шт vs</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+      ${['A','B','C','D'].map(t=>{
+        const lb={A:'Лідери (топ 36%)',B:'Вище середнього',C:'Середні',D:'Потребують уваги'};
+        return `<span class="tier ${tc(t)}" style="font-size:11px;padding:3px 10px;border-radius:5px;width:auto">${t} — ${lb[t]}</span>`;
+      }).join('')}
+    </div>`;
+}
+
+function renderSellers(){
+  const sellers=S.sellers.filter(s=>s.revenue>0).sort((a,b)=>b.revenue-a.revenue);
+  const list=sellers.map(s=>`
+    <div class="li${S.selSeller===s.name?' sel':''}" onclick="S.selSeller='${s.name}';render()">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="li-name">${s.full}</div>
+        <span class="tier ${tc(s.tier)}" style="width:20px;height:20px;font-size:10px">${s.tier}</span>
+      </div>
+      <div class="li-sub">${fmt(s.revenue)} ₴ · ${s.units} шт</div>
+    </div>`).join('');
+
+  let detail=`<div class="empty">← Оберіть продавця зі списку</div>`;
+  if(S.selSeller){
+    const s=sellers.find(x=>x.name===S.selSeller);
+    if(s){
+      const vs=(v,lbl)=>`
+        <div>
+          <div class="vs-lbl">${lbl}</div>
+          <div>${vsBar(v,2.5)}</div>
+        </div>`;
+      const cats=(s.cats||[]).map(c=>`
+        <div class="cat-row">
+          <div class="cat-name">${c.cat}</div>
+          <div style="width:90px">${vsBar(c.revVs,3)}</div>
+          <div style="width:80px">${vsBar(c.aspVs,3)}</div>
+          <div class="cat-rev">${fmt(c.rev)} ₴</div>
+        </div>`).join('')||`<div class="empty" style="padding:16px">Завантажте звіт</div>`;
+      detail=`
+        <div class="profile">
+          <div class="pname">${s.full}</div>
+          <div class="pmeta">
+            <span class="tier ${tc(s.tier)}" style="width:auto;padding:0 10px">${s.tier} тир</span>
+            <span style="font-size:11px;color:var(--t3)">#${sellers.indexOf(s)+1} рейтинг</span>
+          </div>
+          <div class="pm-grid">
+            <div class="pm-item"><div class="pm-l">Виторг</div><div class="pm-v" style="font-size:17px">${fmt(s.revenue)} ₴</div></div>
+            <div class="pm-item"><div class="pm-l">Штуки</div><div class="pm-v">${s.units}</div></div>
+            <div class="pm-item"><div class="pm-l">Сер. чек</div><div class="pm-v" style="font-size:17px">${fmt(s.asp)} ₴</div></div>
+          </div>
+          <div class="vs-grid">
+            ${vs(s.revVs,'Виторг vs бенчм.')}
+            ${vs(s.aspVs,'ASP vs бенчм.')}
+            ${vs(s.unitsVs,'Штуки vs бенчм.')}
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h">
+            <span class="card-t">Категорії</span>
+            <span style="font-size:10px;color:var(--t3)">виторг vs · ASP vs · сума ₴</span>
+          </div>
+          <div>${cats}</div>
+        </div>`;
+    }
+  }
+  return `<div class="split"><div class="list-panel"><div class="list-head">Продавці</div>${list}</div><div>${detail}</div></div>`;
+}
+
+function renderCategories(){
+  const cats=S.cats.length?S.cats:buildCatIndex(S.sellers);
+  if(!cats.length)return`<div class="empty">Завантажте звіт для аналізу категорій (.xlsx)</div>`;
+  const list=cats.map(c=>`
+    <div class="li${S.selCat===c.cat?' sel':''}" onclick="S.selCat='${c.cat}';render()">
+      <div class="li-name">${c.cat}</div>
+      <div class="li-sub">${c.sellers.length} продавців</div>
+    </div>`).join('');
+
+  let detail=`<div class="empty">← Оберіть категорію</div>`;
+  if(S.selCat){
+    const c=cats.find(x=>x.cat===S.selCat);
+    if(c){
+      const sorted=[...c.sellers].sort((a,b)=>b.rev-a.rev);
+      const maxR=Math.max(...sorted.map(s=>s.rev),1);
+      const rows=sorted.map((s,i)=>`
+        <div class="cr">
+          <div class="cr-rank">${i+1}</div>
+          <div style="display:flex;align-items:center;gap:8px;flex:1">
+            <span class="tier ${tc(s.tier)}" style="width:20px;height:20px;font-size:10px">${s.tier}</span>
+            <div class="cr-name">${s.full||s.name}</div>
+          </div>
+          <div style="width:100px">${vsBar(s.revVs,3)}</div>
+          <div style="width:80px">${vsBar(s.aspVs,3)}</div>
+          <div class="cr-rev">${fmt(s.rev)} ₴</div>
+        </div>`).join('');
+      detail=`
+        <div class="card">
+          <div class="card-h">
+            <span class="card-t">${S.selCat}</span>
+            <span style="font-size:10px;color:var(--t3)">виторг vs · ASP vs · сума ₴</span>
+          </div>
+          <div>${rows}</div>
+        </div>
+        <div style="margin-top:8px;padding:12px 16px;background:var(--bg3);border-radius:var(--r);border:1px solid var(--bd);font-size:11px;color:var(--t3);line-height:1.7">
+          <strong style="color:var(--t2)">Для проведення кампанії з категорії:</strong>
+          призначте продавця з найвищим revVs або надайте увагу тим, хто значно нижче бенчмарку.
+        </div>`;
+    }
+  }
+  return `<div class="split"><div class="list-panel"><div class="list-head">Категорії</div>${list}</div><div>${detail}</div></div>`;
+}
+
+function renderPlan(){
+  const sellers=S.sellers.filter(s=>s.revenue>0).sort((a,b)=>b.revenue-a.revenue);
+  const list=sellers.map(s=>`
+    <div class="li${S.selSeller===s.name?' sel':''}" onclick="S.selSeller='${s.name}';render()">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="li-name">${s.full}</div>
+        <span class="tier ${tc(s.tier)}" style="width:20px;height:20px;font-size:10px">${s.tier}</span>
+      </div>
+    </div>`).join('');
+
+  let detail=`<div class="empty">← Оберіть продавця</div>`;
+  if(S.selSeller){
+    const s=sellers.find(x=>x.name===S.selSeller);
+    const plan=PLANS[S.selSeller]||PLANS.default;
+    const totAct=plan.reduce((a,d)=>a+d.actions.length,0);
+    const doneAct=plan.reduce((a,d,di)=>a+d.actions.filter((_,ai)=>S.checks[`${S.selSeller}-${di}-${ai}`]).length,0);
+    const prog=totAct>0?Math.round(doneAct/totAct*100):0;
+    const days=plan.map((day,di)=>{
+      const items=day.actions.map((a,ai)=>{
+        const k=`${S.selSeller}-${di}-${ai}`;
+        const done=!!S.checks[k];
+        const ad=adef(a.type);
+        return `<div class="action${done?' done':''}" onclick="toggleCheck('${k}')">
+          <div class="chk${done?' on':''}">${done?'✓':''}</div>
+          <div>
+            <span class="abadge" style="background:${ad.bg};color:${ad.color}">${ad.label}</span>
+            <div class="atxt">${a.text}</div>
+          </div>
+        </div>`;
+      }).join('');
+      const dc=day.actions.filter((_,ai)=>S.checks[`${S.selSeller}-${di}-${ai}`]).length;
+      return `<div class="day-block">
+        <div class="day-h">
+          <span class="day-lbl">${day.day}</span>
+          <span class="day-prog">${dc}/${day.actions.length}</span>
+        </div>
+        <div class="day-body">${items}</div>
+      </div>`;
+    }).join('');
+
+    detail=`
+      <div style="margin-bottom:14px;background:var(--bg2);border:1px solid var(--bd);border-radius:var(--r);padding:14px 18px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+          <span style="font-size:13px;font-weight:600">${s?.full||S.selSeller}</span>
+          <span style="font-size:11px;color:var(--t3);font-family:'IBM Plex Mono',monospace">${doneAct} / ${totAct} завдань · ${prog}%</span>
+        </div>
+        <div class="plan-prog"><div class="plan-prog-f" style="width:${prog}%"></div></div>
+        <div style="font-size:10px;color:var(--t3)">Прогрес тижня зберігається автоматично</div>
+      </div>
+      ${days}
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">
+        ${ACTDEF.map(a=>`<span style="font-size:9px;font-weight:700;padding:3px 8px;border-radius:4px;background:${a.bg};color:${a.color};letter-spacing:.5px;text-transform:uppercase">${a.label}</span>`).join('')}
+      </div>`;
+  }
+  return `<div class="split"><div class="list-panel"><div class="list-head">Продавці</div>${list}</div><div>${detail}</div></div>`;
+}
+
+function renderFocus(){
+  const active=S.sellers.filter(s=>s.revenue>0).sort((a,b)=>a.revVs-b.revVs);
+  const urgent=active.filter(s=>s.tier==='D');
+  const aspWeak=active.filter(s=>s.aspVs<-.1&&s.tier!=='D').slice(0,3);
+  const stars=active.filter(s=>s.revVs>.3&&s.tier==='A').slice(0,2);
+  const allCats={};
+  S.sellers.forEach(s=>(s.cats||[]).forEach(c=>{
+    if(!allCats[c.cat]){allCats[c.cat]={cat:c.cat,total:0,cnt:0}}
+    allCats[c.cat].total+=c.rev; allCats[c.cat].cnt++;
+  }));
+  const topCats=Object.values(allCats).sort((a,b)=>b.total-a.total).slice(0,5);
+
+  const fc=(title,badge,badgeSty,items,empty)=>`
+    <div>
+      <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--t3);text-transform:uppercase;margin-bottom:8px">${title}</div>
+      ${items.length?items.map(it=>`
+        <div class="fc">
+          <div class="fbadge" style="${badgeSty}">${badge}</div>
+          <div class="fname">${it.full||it.name}</div>
+          <div class="fsub">${it.sub}</div>
+          ${it.link?`<span class="flink" onclick="${it.link}">${it.linkTxt}</span>`:''}
+        </div>`).join(''):
+        `<div class="fc"><div style="color:var(--t3);font-size:12px">${empty}</div></div>`
+      }
+    </div>`;
+
+  return `<div class="focus-grid">
+    ${fc('Термінові дії','Тир D · Увага','background:var(--red-bg);color:var(--red)',
+      urgent.map(s=>({...s,sub:`Виторг нижче бенчм. на ${pct(Math.abs(s.revVs))}`,
+        link:`go('plan');S.selSeller='${s.name}';render()`,linkTxt:'Відкрити план дій →'})),
+      'Немає критичних ситуацій')}
+    ${fc('Низький ASP — тренінг','Увага ASP','background:var(--amber-bg);color:var(--amber)',
+      aspWeak.map(s=>({...s,sub:`ASP vs бенчм.: ${pct(s.aspVs)}. Рекомендація: тренінг апселлу`})),
+      'ASP в нормі у всіх')}
+    ${fc('Лідери → наставники','Тир A · Лідер','background:var(--green-bg);color:var(--green)',
+      stars.map(s=>({...s,sub:`Виторг: ${pct(s.revVs)} vs бенчм. Може навчати тир D`})),
+      'Завантажте звіт для аналізу')}
+    <div>
+      <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--t3);text-transform:uppercase;margin-bottom:8px">Топ категорії магазину</div>
+      <div class="card">
+        ${topCats.length?topCats.map((c,i)=>`
+          <div class="cr">
+            <div class="cr-rank">${i+1}</div>
+            <div class="cr-name">${c.cat}</div>
+            <div class="cr-rev rmono">${fmt(c.total)} ₴</div>
+          </div>`).join(''):`<div class="empty" style="padding:16px">Завантажте звіт</div>`}
+      </div>
+    </div>
+  </div>`;
+}
+
+// ═══ RENDER MAIN ══════════════════════════════════════════════════════════════
+function render(){
+  renderKPI();
+  const titles={overview:'Огляд магазину',sellers:'Продавці',categories:'Аналіз категорій',plan:'План дій',focus:'Фокус дня'};
+  document.getElementById('pageTitle').textContent=titles[S.view]||'';
+  const el=document.getElementById('content');
+  el.className='anim';
+  void el.offsetWidth;
+  if(S.view==='overview') el.innerHTML=renderOverview();
+  else if(S.view==='sellers') el.innerHTML=renderSellers();
+  else if(S.view==='categories') el.innerHTML=renderCategories();
+  else if(S.view==='plan') el.innerHTML=renderPlan();
+  else if(S.view==='focus') el.innerHTML=renderFocus();
+  saveChecks();
+}
+
+// ═══ NAVIGATION ══════════════════════════════════════════════════════════════
+function go(v){
+  S.view=v;
+  document.querySelectorAll('.ni').forEach(el=>{
+    el.classList.toggle('active',el.dataset.v===v);
+  });
+  render();
+}
+
+function toggleCheck(k){
+  S.checks[k]=!S.checks[k];
+  render();
+}
+
+// ═══ PERSISTENCE ══════════════════════════════════════════════════════════════
+function saveChecks(){
+  try{localStorage.setItem('dm2_checks_v2',JSON.stringify(S.checks))}catch(e){}
+}
+function loadChecks(){
+  try{const d=localStorage.getItem('dm2_checks_v2');if(d)S.checks=JSON.parse(d);}catch(e){}
+}
+
+// ═══ FILE UPLOAD ═════════════════════════════════════════════════════════════
+function handleFile(file){
+  if(!file) return;
+  toast('Читаємо файл...','info');
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const {sellers,cats}=parseFile(new Uint8Array(ev.target.result));
+      if(!sellers.length){toast('Не знайдено рядків продавців. Перевірте формат.','err');return;}
+      S.sellers=sellers; S.cats=cats; S.selSeller=null; S.selCat=null;
+      const name=file.name.replace(/\.(xlsx|xls)$/i,'');
+      document.getElementById('sbName').textContent='ДМ2 Мост-2';
+      document.getElementById('sbPeriod').textContent=name;
+      document.getElementById('pageSub').textContent=`${name} · ${sellers.length} продавців · ${cats.length} категорій`;
+      toast(`Завантажено: ${sellers.length} продавців, ${cats.length} категорій`,'ok');
+      render();
+    }catch(e){toast('Помилка: '+e.message,'err');}
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ═══ EVENTS ══════════════════════════════════════════════════════════════════
+document.getElementById('fileInput').addEventListener('change',e=>{
+  handleFile(e.target.files[0]); e.target.value='';
+});
+
+const dz=document.getElementById('dropZone');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag')});
+dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
+dz.addEventListener('drop',e=>{
+  e.preventDefault();dz.classList.remove('drag');
+  handleFile(e.dataTransfer.files[0]);
+});
+
+document.addEventListener('keydown',e=>{
+  const map={'1':'overview','2':'sellers','3':'categories','4':'plan','5':'focus'};
+  if(map[e.key]&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&document.activeElement.tagName!=='INPUT'){
+    go(map[e.key]);
+  }
+});
+
+// ═══ INIT ═════════════════════════════════════════════════════════════════════
+loadChecks();
+S.sellers=assignTiers(DEFAULT_SELLERS);
+S.cats=buildCatIndex(S.sellers);
+render();
+</script>
+</body>
+</html>
