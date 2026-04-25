@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Чек</title>
+</head>
+<body>
+
+<h2>Создать заказ</h2>
+
+<input id="name" placeholder="Название товара"><br><br>
+<input id="price" placeholder="Цена"><br><br>
+<input id="qty" placeholder="Количество"><br><br>
+
+<button onclick="createOrder()">Создать</button>
+
+<hr>
+
+<div id="result"></div>
+
+<script>
+function createOrder() {
+  const name = document.getElementById('name').value;
+  const price = +document.getElementById('price').value;
+  const qty = +document.getElementById('qty').value;
+
+  const total = price * qty;
+
+  document.getElementById('result').innerHTML = `
+    <h3>ЧЕК</h3>
+    <p>${name}</p>
+    <p>${price} x ${qty}</p>
+    <b>Итого: ${total}</b>
+  `;
+}
+</script>
+
+</body>
+</html>
