@@ -1,38 +1,589 @@
 <!DOCTYPE html>
-<html>
+<html lang="uk">
 <head>
-  <title>Чек</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Генератор рахунків — Комфі Трейд</title>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; color: #1a1a2e; min-height: 100vh; }
+  .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: white; padding: 20px 28px; display: flex; align-items: center; gap: 14px; }
+  .header-icon { font-size: 28px; }
+  .header h1 { font-size: 20px; font-weight: 700; letter-spacing: 0.3px; }
+  .header p { font-size: 12px; opacity: 0.65; margin-top: 2px; }
+  .container { max-width: 880px; margin: 0 auto; padding: 24px 16px; }
+  .card { background: white; border-radius: 12px; padding: 24px; margin-bottom: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+  .card-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #888; margin-bottom: 18px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  label { font-size: 12px; font-weight: 600; color: #555; }
+  input[type="text"], input[type="number"], input[type="date"] {
+    border: 1.5px solid #e0e0e0; border-radius: 8px; padding: 10px 12px;
+    font-size: 14px; color: #1a1a2e; transition: border-color 0.2s; outline: none; width: 100%;
+  }
+  input:focus { border-color: #4f46e5; }
+  input.num { text-align: right; }
+  .num-label { font-size: 12px; font-weight: 600; color: #555; font-family: monospace; letter-spacing: 0.5px; }
+
+  /* Items table */
+  .items-header {
+    display: grid;
+    grid-template-columns: 36px 110px 1fr 70px 100px;
+    gap: 8px; padding: 0 0 8px 0;
+    border-bottom: 2px solid #e8eaf0; margin-bottom: 8px;
+  }
+  .items-header span { font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+  .items-header span.right { text-align: right; }
+  .item-row {
+    display: grid;
+    grid-template-columns: 36px 110px 1fr 70px 100px;
+    gap: 8px; align-items: center; margin-bottom: 8px;
+  }
+  .item-num { font-size: 13px; font-weight: 600; color: #aaa; text-align: center; padding-top: 2px; }
+  .item-row input { margin: 0; }
+  .item-row input.name-input { font-size: 13px; }
+  .btn-remove { background: none; border: none; cursor: pointer; color: #ccc; font-size: 18px; padding: 6px; border-radius: 6px; transition: all 0.15s; line-height: 1; }
+  .btn-remove:hover { color: #ef4444; background: #fef2f2; }
+
+  .btn-add { background: none; border: 1.5px dashed #c7d2fe; color: #4f46e5; border-radius: 8px; padding: 10px; font-size: 13px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 4px; transition: all 0.2s; }
+  .btn-add:hover { background: #eef2ff; border-color: #4f46e5; }
+
+  /* Summary */
+  .summary { background: #f8f9ff; border: 1.5px solid #e0e4ff; border-radius: 10px; padding: 16px 20px; }
+  .sum-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; font-size: 14px; }
+  .sum-row.total { border-top: 2px solid #e0e4ff; margin-top: 6px; padding-top: 10px; font-weight: 700; font-size: 16px; color: #1a1a2e; }
+  .sum-label { color: #666; }
+  .sum-val { font-family: monospace; font-size: 15px; }
+  .sum-row.total .sum-val { color: #4f46e5; font-size: 17px; }
+  .words-box { margin-top: 12px; background: white; border: 1.5px solid #e0e4ff; border-radius: 8px; padding: 10px 14px; }
+  .words-label { font-size: 11px; color: #aaa; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .words-text { font-size: 13px; color: #333; font-weight: 600; }
+
+  /* Generate button */
+  .btn-generate {
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    color: white; border: none; border-radius: 10px; padding: 16px 28px;
+    font-size: 16px; font-weight: 700; cursor: pointer; width: 100%;
+    transition: all 0.2s; letter-spacing: 0.3px; margin-top: 8px;
+  }
+  .btn-generate:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(79,70,229,0.35); }
+  .btn-generate:active { transform: translateY(0); }
+  .btn-generate:disabled { opacity: 0.5; cursor: default; transform: none; box-shadow: none; }
+
+  .status { text-align: center; padding: 10px; font-size: 13px; border-radius: 8px; margin-top: 12px; display: none; }
+  .status.success { background: #ecfdf5; color: #065f46; display: block; }
+  .status.error { background: #fef2f2; color: #991b1b; display: block; }
+
+  /* Invoice counter badge */
+  .counter-badge { display: inline-flex; align-items: center; gap: 8px; background: #eef2ff; border: 1.5px solid #c7d2fe; border-radius: 8px; padding: 10px 14px; }
+  .counter-val { font-family: monospace; font-size: 15px; font-weight: 700; color: #4f46e5; }
+  .counter-edit { background: none; border: none; cursor: pointer; color: #aaa; font-size: 14px; padding: 2px 6px; border-radius: 4px; transition: color 0.15s; }
+  .counter-edit:hover { color: #4f46e5; }
+
+  @media (max-width: 600px) {
+    .row2, .row3 { grid-template-columns: 1fr; }
+    .items-header, .item-row { grid-template-columns: 28px 90px 1fr 60px 88px; }
+    .header h1 { font-size: 17px; }
+  }
+</style>
 </head>
 <body>
 
-<h2>Создать заказ</h2>
+<div class="header">
+  <div class="header-icon">🧾</div>
+  <div>
+    <h1>Генератор рахунків</h1>
+    <p>ТОВ "КОМФІ ТРЕЙД" — автозаповнення, ПДВ і сума прописом</p>
+  </div>
+</div>
 
-<input id="name" placeholder="Название товара"><br><br>
-<input id="price" placeholder="Цена"><br><br>
-<input id="qty" placeholder="Количество"><br><br>
+<div class="container">
 
-<button onclick="createOrder()">Создать</button>
+  <!-- Номера та дата -->
+  <div class="card">
+    <div class="card-title">Реквізити рахунку</div>
+    <div class="row3">
+      <div class="field">
+        <label>Дата</label>
+        <input type="date" id="invoiceDate">
+      </div>
+      <div class="field">
+        <label>Рахунок-фактура (РБ)</label>
+        <input type="text" id="rbNum" placeholder="РБ0093-000388">
+      </div>
+      <div class="field">
+        <label>Видаткова накладна (ВНБ)</label>
+        <input type="text" id="vnbNum" placeholder="ВНБ0093-000907">
+      </div>
+    </div>
+  </div>
 
-<hr>
+  <!-- Позиції -->
+  <div class="card">
+    <div class="card-title">Позиції товару</div>
+    <div class="items-header">
+      <span>№</span>
+      <span>Код товару</span>
+      <span>Назва товару</span>
+      <span class="right">Кіл-сть</span>
+      <span class="right">Ціна з ПДВ</span>
+    </div>
+    <div id="itemsContainer"></div>
+    <button class="btn-add" onclick="addItem()">+ Додати позицію</button>
+  </div>
 
-<div id="result"></div>
+  <!-- Підсумок -->
+  <div class="card">
+    <div class="card-title">Підсумок</div>
+    <div class="summary">
+      <div class="sum-row">
+        <span class="sum-label">Сума без ПДВ</span>
+        <span class="sum-val" id="sumNoVat">0,00</span>
+      </div>
+      <div class="sum-row">
+        <span class="sum-label">ПДВ 20%</span>
+        <span class="sum-val" id="sumVat">0,00</span>
+      </div>
+      <div class="sum-row total">
+        <span class="sum-label">Сума з ПДВ</span>
+        <span class="sum-val" id="sumTotal">0,00 ₴</span>
+      </div>
+      <div class="words-box">
+        <div class="words-label">Прописом</div>
+        <div class="words-text" id="wordsTotal">—</div>
+      </div>
+      <div class="words-box" style="margin-top:8px">
+        <div class="words-label">ПДВ прописом</div>
+        <div class="words-text" id="wordsVat">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Кнопка -->
+  <button class="btn-generate" id="btnGenerate" onclick="generateInvoice()">
+    ⬇ Завантажити рахунок (.xlsx)
+  </button>
+  <div class="status" id="statusMsg"></div>
+
+</div>
 
 <script>
-function createOrder() {
-  const name = document.getElementById('name').value;
-  const price = +document.getElementById('price').value;
-  const qty = +document.getElementById('qty').value;
+// ==================== НАЛАШТУВАННЯ ====================
+const SUPPLIER = {
+  name: 'ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІДПОВІДАЛЬНІСТЮ "КОМФІ ТРЕЙД"',
+  edrpou: 'ЄДРПОУ 36962487, тел. 0800 303 505',
+  iban: 'Р/р UA893052990000026002050009988',
+  bank: 'в  АТ КБ "ПРИВАТБАНК" МФО 305299',
+  ipn: 'IПН 369624804639, номер свiдоцтва 100275135',
+  address: 'Адреса Україна, 49100, Дніпропетровська обл., місто Дніпро, БУЛЬВАР СЛАВИ, будинок 6 Б, кімната 413',
+  note: 'ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІДПОВІДАЛЬНІСТЮ "КОМФІ ТРЕЙД" має статус платника податку на прибуток на загальних умовах, передбачених Податковим Кодексом України № 2755-VI від 02.12.2010р.',
+};
+const STORE_ADDRESS = 'Дніпропетровська область, м. Дніпро , Шевченківський район, вулиця Королеви Єлизавети II ,буд.2';
+const CASHIER = 'Овчаренко Анастасія Володимирівна';
 
-  const total = price * qty;
-
-  document.getElementById('result').innerHTML = `
-    <h3>ЧЕК</h3>
-    <p>${name}</p>
-    <p>${price} x ${qty}</p>
-    <b>Итого: ${total}</b>
-  `;
+// ==================== ЛІЧИЛЬНИКИ ====================
+function parseInvoiceNum(str) {
+  // Берём цифры только после последнего '-' → "РБ0093-000387" → 387
+  const dash = str.lastIndexOf('-');
+  if (dash >= 0) return parseInt(str.substring(dash + 1)) || 0;
+  return parseInt(str) || 0;
 }
-</script>
+function loadCounters() {
+  const rb = parseInt(localStorage.getItem('lastRB') || '387');
+  const vnb = parseInt(localStorage.getItem('lastVNB') || '906');
+  return { rb: rb + 1, vnb: vnb + 1 };
+}
+function saveCounters(rb, vnb) {
+  localStorage.setItem('lastRB', parseInvoiceNum(rb));
+  localStorage.setItem('lastVNB', parseInvoiceNum(vnb));
+}
+function formatRB(n) { return 'РБ0093-' + String(n).padStart(6, '0'); }
+function formatVNB(n) { return 'ВНБ0093-' + String(n).padStart(6, '0'); }
 
+// ==================== ДАТА ====================
+const UA_MONTHS = ['січня','лютого','березня','квітня','травня','червня','липня','серпня','вересня','жовтня','листопада','грудня'];
+function dateToUkr(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return `${d.getDate()} ${UA_MONTHS[d.getMonth()]} ${d.getFullYear()} р.`;
+}
+function dateToDot(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  return `${dd}.${mm}.${d.getFullYear()}`;
+}
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// ==================== СУМА ПРОПИСОМ ====================
+const HUNDREDS = ['','сто','двісті','триста','чотириста','п\'ятсот','шістсот','сімсот','вісімсот','дев\'ятсот'];
+const TENS = ['','десять','двадцять','тридцять','сорок','п\'ятдесят','шістдесят','сімдесят','вісімдесят','дев\'яносто'];
+const TEENS = ['десять','одинадцять','дванадцять','тринадцять','чотирнадцять','п\'ятнадцять','шістнадцять','сімнадцять','вісімнадцять','дев\'ятнадцять'];
+const ONES_F = ['','одна','дві','три','чотири','п\'ять','шість','сім','вісім','дев\'ять'];
+const ONES_M = ['','один','два','три','чотири','п\'ять','шість','сім','вісім','дев\'ять'];
+
+function threeDigits(n, feminine) {
+  const parts = [];
+  const h = Math.floor(n / 100);
+  const rest = n % 100;
+  if (h) parts.push(HUNDREDS[h]);
+  if (rest >= 10 && rest <= 19) { parts.push(TEENS[rest - 10]); }
+  else {
+    const t = Math.floor(rest / 10), o = rest % 10;
+    if (t) parts.push(TENS[t]);
+    if (o) parts.push(feminine ? ONES_F[o] : ONES_M[o]);
+  }
+  return parts.join(' ');
+}
+function plural(n, one, few, many) {
+  const m10 = n % 10, m100 = n % 100;
+  if (m100 >= 11 && m100 <= 19) return many;
+  if (m10 === 1) return one;
+  if (m10 >= 2 && m10 <= 4) return few;
+  return many;
+}
+function numToWords(n) {
+  if (n === 0) return 'нуль';
+  const parts = [];
+  const bil = Math.floor(n / 1000000000);
+  const mil = Math.floor((n % 1000000000) / 1000000);
+  const thou = Math.floor((n % 1000000) / 1000);
+  const rem = n % 1000;
+  if (bil) { parts.push(threeDigits(bil, false)); parts.push(plural(bil,'мільярд','мільярди','мільярдів')); }
+  if (mil) { parts.push(threeDigits(mil, false)); parts.push(plural(mil,'мільйон','мільйони','мільйонів')); }
+  if (thou) { parts.push(threeDigits(thou, true)); parts.push(plural(thou,'тисяча','тисячі','тисяч')); }
+  if (rem || (!bil && !mil && !thou)) { const w = threeDigits(rem, true); if(w) parts.push(w); }
+  return parts.filter(Boolean).join(' ');
+}
+function hryvniaForm(n) { return plural(n, 'гривня', 'гривні', 'гривень'); }
+function amountInWords(total) {
+  const hrn = Math.floor(total);
+  const kop = Math.round((total - hrn) * 100);
+  const w = numToWords(hrn);
+  const cap = w.charAt(0).toUpperCase() + w.slice(1);
+  return `${cap} ${hryvniaForm(hrn)} ${String(kop).padStart(2,'0')} копійок`;
+}
+function vatLine(vat) {
+  const hrn = Math.floor(vat);
+  const kop = Math.round((vat - hrn) * 100);
+  return `ПДВ: ${hrn.toLocaleString('uk-UA')} грн ${String(kop).padStart(2,'0')} к`;
+}
+
+// ==================== ПОЗИЦІЇ ====================
+let items = [];
+let itemId = 0;
+
+function addItem(name='', code='', qty=1, priceWithVat=0) {
+  const id = itemId++;
+  items.push({ id, name, code, qty, priceWithVat });
+  renderItems();
+}
+
+function removeItem(id) {
+  items = items.filter(i => i.id !== id);
+  renderItems();
+}
+
+function updateItem(id, field, val) {
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+  if (field === 'qty' || field === 'priceWithVat') val = parseFloat(val) || 0;
+  item[field] = val;
+  calcTotals();
+}
+
+function renderItems() {
+  const container = document.getElementById('itemsContainer');
+  container.innerHTML = '';
+  items.forEach((item, idx) => {
+    const div = document.createElement('div');
+    div.className = 'item-row';
+    div.innerHTML = `
+      <span class="item-num">${idx + 1}</span>
+      <input type="text" placeholder="Код" value="${item.code}" oninput="updateItem(${item.id},'code',this.value)">
+      <input type="text" class="name-input" placeholder="Назва товару" value="${item.name}" oninput="updateItem(${item.id},'name',this.value)">
+      <input type="number" class="num" min="1" value="${item.qty || 1}" oninput="updateItem(${item.id},'qty',this.value)">
+      <input type="number" class="num" min="0" step="0.01" placeholder="0.00" value="${item.priceWithVat || ''}" oninput="updateItem(${item.id},'priceWithVat',this.value)">
+    `;
+    const btn = document.createElement('button');
+    btn.className = 'btn-remove';
+    btn.textContent = '×';
+    btn.onclick = () => removeItem(item.id);
+    if (items.length > 1) div.appendChild(btn);
+    container.appendChild(div);
+  });
+  calcTotals();
+}
+
+function calcTotals() {
+  let totalWithVat = 0;
+  items.forEach(item => {
+    totalWithVat += (item.priceWithVat || 0) * (item.qty || 0);
+  });
+  const vat = Math.round((totalWithVat / 6) * 100) / 100;
+  const noVat = Math.round((totalWithVat - vat) * 100) / 100;
+
+  const fmt = n => n.toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  document.getElementById('sumNoVat').textContent = fmt(noVat);
+  document.getElementById('sumVat').textContent = fmt(vat);
+  document.getElementById('sumTotal').textContent = fmt(totalWithVat) + ' ₴';
+  document.getElementById('wordsTotal').textContent = totalWithVat > 0 ? amountInWords(totalWithVat) : '—';
+  document.getElementById('wordsVat').textContent = totalWithVat > 0 ? vatLine(vat) : '—';
+}
+
+// ==================== ГЕНЕРАЦІЯ xlsx ====================
+async function generateInvoice() {
+  const btn = document.getElementById('btnGenerate');
+  const status = document.getElementById('statusMsg');
+  status.className = 'status';
+
+  // Збираємо дані
+  const dateStr = document.getElementById('invoiceDate').value;
+  const rbNum = document.getElementById('rbNum').value.trim();
+  const vnbNum = document.getElementById('vnbNum').value.trim();
+
+  if (!dateStr) { showStatus('Вкажіть дату', 'error'); return; }
+  if (!rbNum || !vnbNum) { showStatus('Вкажіть номери рахунків', 'error'); return; }
+  const validItems = items.filter(i => i.name.trim() && i.priceWithVat > 0);
+  if (!validItems.length) { showStatus('Додайте хоча б одну позицію', 'error'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Генерую...';
+
+  try {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Sheet1');
+    ws.pageSetup = { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+
+    // Ширини колонок (відповідно до оригіналу)
+    [3.5, 3.83, 14.33, 21.67, 4.5, 16.5, 7.67, 9.67, 8.17, 12.5, 18.17].forEach((w, i) => {
+      ws.getColumn(i + 1).width = w;
+    });
+
+    // Стилі
+    const bold10 = (extra={}) => ({ font: { bold: true, size: 10, name: 'Arial', ...extra }, alignment: { wrapText: false } });
+    const reg10 = (extra={}) => ({ font: { size: 10, name: 'Arial' }, ...extra });
+    const bold11 = (ha='center', wrap=false) => ({ font: { bold: true, size: 11, name: 'Arial' }, alignment: { horizontal: ha, wrapText: wrap, vertical: 'middle' } });
+    const reg11 = (ha='left', wrap=false) => ({ font: { size: 11, name: 'Arial' }, alignment: { horizontal: ha, wrapText: wrap, vertical: 'middle' } });
+
+    function setCell(addr, val, style={}) {
+      const cell = ws.getCell(addr);
+      cell.value = val;
+      if (style.font) cell.font = style.font;
+      if (style.alignment) cell.alignment = style.alignment;
+      if (style.border) cell.border = style.border;
+      if (style.fill) cell.fill = style.fill;
+    }
+
+    const thinBorder = {
+      top: { style: 'thin' }, bottom: { style: 'thin' },
+      left: { style: 'thin' }, right: { style: 'thin' }
+    };
+
+    // ---- БЛОК ПОСТАЧАЛЬНИКА (рядки 1-7) ----
+    ws.getRow(1).height = 12.75; ws.getRow(2).height = 12.75;
+    ws.getRow(3).height = 12.75; ws.getRow(4).height = 12.75;
+    ws.getRow(5).height = 12.75; ws.getRow(6).height = 30;
+    ws.getRow(7).height = 36; ws.getRow(8).height = 3.75; ws.getRow(9).height = 6;
+
+    setCell('A1', 'Постачальник', bold10());
+    setCell('D1', SUPPLIER.name, reg10());
+    setCell('D2', SUPPLIER.edrpou, reg10());
+    setCell('D3', SUPPLIER.iban, reg10());
+    setCell('D4', SUPPLIER.bank, reg10());
+    setCell('D5', SUPPLIER.ipn, reg10());
+    setCell('D6', SUPPLIER.address, { font: { size: 10, name: 'Arial' }, alignment: { wrapText: true } });
+    setCell('D7', SUPPLIER.note, { font: { size: 8, name: 'Arial' }, alignment: { wrapText: true } });
+    ws.mergeCells('D1:K1'); ws.mergeCells('D2:K2'); ws.mergeCells('D3:K3');
+    ws.mergeCells('D4:K4'); ws.mergeCells('D5:K5'); ws.mergeCells('D6:K6'); ws.mergeCells('D7:I7');
+
+    // ---- МАГАЗИН (рядки 10-11) ----
+    ws.getRow(10).height = 12; ws.getRow(11).height = 12; ws.getRow(12).height = 12;
+    setCell('A10', 'Магазин', bold10());
+    setCell('A11', 'відвантаження:', bold10());
+    setCell('D11', STORE_ADDRESS, reg10());
+    ws.mergeCells('A10:C10'); ws.mergeCells('A11:C11'); ws.mergeCells('D11:K11'); ws.mergeCells('A12:C12');
+
+    // ---- РАХУНОК-ФАКТУРА (рядок 13) ----
+    setCell('A13', 'Рахунок-фактура:', bold10());
+    setCell('D13', `${rbNum}  від ${dateToDot(dateStr)}`, reg10());
+    ws.mergeCells('D13:K13');
+
+    // ---- ВИДАТКОВА НАКЛАДНА (рядки 15-16) ----
+    ws.getRow(15).height = 16.5; ws.getRow(16).height = 12.75;
+    setCell('A15', `Видаткова накладна №${vnbNum}`, {
+      font: { bold: true, size: 12, name: 'Arial' },
+      alignment: { horizontal: 'right' }
+    });
+    setCell('A16', `від ${dateToUkr(dateStr)}`, {
+      font: { bold: true, size: 12, name: 'Arial' },
+      alignment: { horizontal: 'center' }
+    });
+    ws.mergeCells('A15:I15'); ws.mergeCells('A16:I16');
+
+    // ---- ЗАГОЛОВОК ТАБЛИЦІ (рядок 18) ----
+    setCell('A18', '№', bold11('center', false));
+    setCell('B18', 'Код', bold11('center', true));
+    setCell('D18', 'Товар', bold11('center', false));
+    setCell('G18', 'Од.', bold11('center', false));
+    setCell('H18', 'Ставка ПДВ, %', bold11('center', true));
+    setCell('I18', 'Кіль-\nкість', bold11('center', true));
+    setCell('J18', 'Ціна без ПДВ', bold11('center', true));
+    setCell('K18', 'Сума', bold11('center', true));
+    ws.mergeCells('B18:C18'); ws.mergeCells('D18:F18');
+    ['A18','B18','D18','G18','H18','I18','J18','K18'].forEach(a => { ws.getCell(a).border = thinBorder; });
+
+    // ---- ПОЗИЦІЇ ----
+    let totalWithVat = 0;
+    validItems.forEach((item, idx) => {
+      totalWithVat += item.priceWithVat * item.qty;
+    });
+    const totalVat = Math.round((totalWithVat / 6) * 100) / 100;
+    const totalNoVat = Math.round((totalWithVat - totalVat) * 100) / 100;
+
+    validItems.forEach((item, idx) => {
+      const r = 19 + idx;
+      ws.getRow(r).height = 12.75;
+      const priceNoVat = Math.round((item.priceWithVat / 1.2) * 100) / 100;
+      const sum = Math.round(priceNoVat * item.qty * 100) / 100;
+
+      setCell(`A${r}`, idx + 1, reg11('right'));
+      setCell(`B${r}`, item.code, reg11('center'));
+      setCell(`D${r}`, item.name, { font: { size: 11, name: 'Arial' }, alignment: { horizontal: 'left', wrapText: true, vertical: 'middle' } });
+      setCell(`G${r}`, 'шт.', reg11('center', true));
+      setCell(`H${r}`, '20%', reg11('center'));
+      setCell(`I${r}`, item.qty, reg11('center'));
+      setCell(`J${r}`, priceNoVat, reg11('right'));
+      setCell(`K${r}`, sum, reg11('right'));
+      ws.mergeCells(`B${r}:C${r}`); ws.mergeCells(`D${r}:F${r}`);
+      [`A${r}`,`B${r}`,`D${r}`,`G${r}`,`H${r}`,`I${r}`,`J${r}`,`K${r}`].forEach(a => {
+        ws.getCell(a).border = thinBorder;
+      });
+      ws.getCell(`J${r}`).numFmt = '#,##0.00';
+      ws.getCell(`K${r}`).numFmt = '#,##0.00';
+    });
+
+    // ---- ПІДСУМКИ ----
+    const lastItem = 19 + validItems.length - 1;
+    const rNoVat = lastItem + 1;
+    const rVat = lastItem + 2;
+    const rTotal = lastItem + 3;
+
+    ws.getRow(rNoVat).height = 12.75;
+    ws.getRow(rVat).height = 12.75;
+    ws.getRow(rTotal).height = 12.75;
+
+    setCell(`J${rNoVat}`, 'Сума без ПДВ:', { font: { bold: true, size: 11, name: 'Arial' }, alignment: { horizontal: 'right' } });
+    setCell(`K${rNoVat}`, totalNoVat, reg11('right'));
+    setCell(`J${rVat}`, 'ПДВ:', { font: { bold: true, size: 11, name: 'Arial' }, alignment: { horizontal: 'right' } });
+    setCell(`K${rVat}`, totalVat, reg11('right'));
+    setCell(`J${rTotal}`, 'Сума з ПДВ:', { font: { bold: true, size: 11, name: 'Arial' }, alignment: { horizontal: 'right' } });
+    setCell(`K${rTotal}`, totalWithVat, reg11('right'));
+    [rNoVat, rVat, rTotal].forEach(r => {
+      ws.getCell(`K${r}`).numFmt = '#,##0.00';
+    });
+
+    // ---- СУМА ПРОПИСОМ ----
+    const rWords1 = rTotal + 1;
+    const rWords2 = rTotal + 2;
+    const rVatLine = rTotal + 3;
+    ws.getRow(rWords1).height = 12.75;
+    ws.getRow(rWords2).height = 12.75;
+    ws.getRow(rVatLine).height = 12.75;
+
+    setCell(`A${rWords1}`, 'Всього на суму:', reg11('left'));
+    setCell(`A${rWords2}`, amountInWords(totalWithVat), {
+      font: { bold: true, size: 12, name: 'Arial' },
+      alignment: { horizontal: 'left' }
+    });
+    setCell(`A${rVatLine}`, vatLine(totalVat), reg11('left'));
+    ws.mergeCells(`A${rWords2}:D${rWords2}`);
+
+    // ---- ФУТЕР ----
+    const rMisto = rVatLine + 2;
+    const rVidv = rVatLine + 4;
+    const rPidpis = rVatLine + 5;
+    const rKasyr = rVatLine + 7;
+
+    setCell(`B${rMisto}`, 'Місце складання м. Дніпро', reg10());
+    setCell(`C${rVidv}`, 'Відвантажив(ла):', reg10());
+    setCell(`E${rPidpis}`, '(підпіс, М.П.)', { font: { size: 8, name: 'Arial' } });
+    setCell(`C${rKasyr}`, ` Касир ${CASHIER}`, reg10());
+
+    // ---- ЗАВАНТАЖЕННЯ ----
+    const buffer = await wb.xlsx.writeBuffer();
+    const filename = `Рахунок_${rbNum.replace(/[:/\\]/g, '_')}_${dateToDot(dateStr)}.xlsx`;
+    const mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+    // Спроба 1: blob URL (десктоп/Chrome)
+    try {
+      const blob = new Blob([buffer], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch(e) {
+      // Спроба 2: base64 data URL (Telegram / Safari)
+      const uint8 = new Uint8Array(buffer);
+      let binary = '';
+      const chunkSize = 8192;
+      for (let i = 0; i < uint8.length; i += chunkSize) {
+        binary += String.fromCharCode(...uint8.subarray(i, i + chunkSize));
+      }
+      const base64 = btoa(binary);
+      const link = document.createElement('a');
+      link.href = `data:${mimeType};base64,${base64}`;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // Зберігаємо лічильники
+    saveCounters(rbNum, vnbNum);
+
+    // Автоінкремент на наступний раз
+    const nextRB = parseInvoiceNum(rbNum) + 1;
+    const nextVNB = parseInvoiceNum(vnbNum) + 1;
+    document.getElementById('rbNum').value = formatRB(nextRB);
+    document.getElementById('vnbNum').value = formatVNB(nextVNB);
+    localStorage.setItem('lastRB', nextRB);
+    localStorage.setItem('lastVNB', nextVNB);
+
+    showStatus('✅ Рахунок завантажено! Лічильники оновлено для наступного рахунку.', 'success');
+  } catch(e) {
+    console.error(e);
+    showStatus('❌ Помилка генерації: ' + e.message, 'error');
+  }
+
+  btn.disabled = false;
+  btn.textContent = '⬇ Завантажити рахунок (.xlsx)';
+}
+
+function showStatus(msg, type) {
+  const el = document.getElementById('statusMsg');
+  el.textContent = msg;
+  el.className = 'status ' + type;
+  setTimeout(() => { el.className = 'status'; }, 6000);
+}
+
+// ==================== ІНІЦІАЛІЗАЦІЯ ====================
+window.onload = function() {
+  document.getElementById('invoiceDate').value = todayStr();
+  const { rb, vnb } = loadCounters();
+  document.getElementById('rbNum').value = formatRB(rb);
+  document.getElementById('vnbNum').value = formatVNB(vnb);
+  // Початкова позиція
+  addItem();
+};
+</script>
 </body>
 </html>
