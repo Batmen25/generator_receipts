@@ -1406,10 +1406,16 @@ function addToHistory(history,entry,max=30){
 function mergeHistory(a,b){let h=[...(a||[])];(b||[]).forEach(e=>{const ex=h.find(x=>x.type===e.type&&x.period===e.period);if(!ex||new Date(e.at)>new Date(ex.at))h=addToHistory(h,e);});return h;}
 
 // ═══ СИНХРОНІЗАЦІЯ МІЖ ПРИСТРОЯМИ (через твій Cloudflare-сервер) ═══
-function syncCfg(){const c=lsGet(LS_KEYS.sync);return c&&c.url&&c.pin?c:null;}
+// Сайт, відкритий кнопкою з Telegram-бота: сервер передає свою адресу (?api=), а вхід — підписом Telegram, без коду
+const TG_SYNC=(()=>{try{
+  const q=new URLSearchParams(location.search),api=q.get('api');
+  const init=(window.Telegram&&Telegram.WebApp&&Telegram.WebApp.initData)||new URLSearchParams(location.hash.slice(1)).get('tgWebAppData')||sessionStorage.getItem('dm2_tginit')||'';
+  if(init)sessionStorage.setItem('dm2_tginit',init);
+  return api&&init?{url:api,tg:init}:null;}catch(e){return null;}})();
+function syncCfg(){const c=lsGet(LS_KEYS.sync);if(c&&c.url&&c.pin)return c;return TG_SYNC;}
 async function cloudReq(path,opt={}){
   const c=syncCfg();if(!c)throw new Error('синхронізацію не налаштовано');
-  const r=await fetch(c.url.replace(/\/+$/,'')+path,{...opt,headers:{'Content-Type':'application/json','X-Pin':c.pin}});
+  const r=await fetch(c.url.replace(/\/+$/,'')+path,{...opt,headers:{'Content-Type':'application/json',...(c.pin?{'X-Pin':c.pin}:{}),...(c.tg?{'X-Tg-Init':c.tg}:{})}});
   let j={};try{j=await r.json();}catch(e){}
   if(!r.ok)throw new Error(j.error||('помилка '+r.status));
   return j;
@@ -3011,9 +3017,13 @@ function teamText(){
 let TEAM_CACHE=null;
 function renderTeamFeedback(){
   const key=[S.fileAt,S.accData&&S.accData.at,S.accTop&&S.accTop.at,JSON.stringify(P_PLANS[planDefaultMonth()]||{}).length,S.theme].join('|');
-  if(!TEAM_CACHE||TEAM_CACHE.key!==key){TEAM_CACHE={key,imgs:teamImages(),text:teamText()};}
+  if(!TEAM_CACHE||TEAM_CACHE.key!==key){let imgs=[],text='',err='';
+    try{imgs=teamImages();}catch(e){err='картинки: '+e.message;console.error(e);}
+    try{text=teamText();}catch(e){err+=(err?'; ':'')+'текст: '+e.message;console.error(e);}
+    TEAM_CACHE={key,imgs,text,err};}
+  if(TEAM_CACHE.err)return`<div class="empty">Не вдалося зібрати фідбек (${esc(TEAM_CACHE.err)}). Надішли мені скрин цього повідомлення.</div>`;
   const {imgs,text}=TEAM_CACHE;
-  if(!imgs.length&&!text)return'<div class="empty">Завантаж звіти — і тут з’явиться фідбек для чату команди.</div>';
+  if(!imgs.length&&!text)return(syncCfg()&&!S.sellers.length?'<div class="empty">Завантажую дані з хмари…</div>':'<div class="empty">Завантаж звіти — і тут з’явиться фідбек для чату команди.</div>');
   const canShareFiles=!!(navigator.canShare&&window.File);
   return`<p class="q-meta">Картинки й текст для чату команди — з останніх звітів. Текст можна поправити. Галочкою вибери, які картинки надсилати.</p>
     <div class="tm-wrap">
@@ -4096,7 +4106,7 @@ S.theme=savedTheme==='dark'?'dark':'light';
 applyTheme();
 
 // Initial render + Cloud Load
-if(location.hash==='#teamfb'){S.fbTab='team';S.view='feedback';}
+if(location.hash==='#teamfb'||new URLSearchParams(location.search).get('view')==='teamfb'){S.fbTab='team';S.view='feedback';}
 render();
 loadLocal();
 migrateFromOldCloud();
